@@ -1,6 +1,6 @@
 ﻿{
 	# Simulation speed
-	IterationsPerSecond: 10000
+	IterationsPerSecond: 5000
 
 	# Fraction of distance to cross every iteration
 	MovementSpeed: 0.5
@@ -14,39 +14,31 @@
 	# Starting point
 	Start: {
 		X: 0.5
-		Y: 0.5
-		Z: 0.0
+		Y: 0.333333
+		Z: 0.333333
 	}
 
 	# Attractor points defined as 3D coordinates
 	Attractors: [
 		{
 			X: 0.5
-			Y: 0.79282032302
+			Y: 1.0
+			Z: 0.333333
+		},
+		{
+			X: 0.0
+			Y: 0.0
 			Z: 0.0
 		},
 		{
-			X: 0.1
-			Y: 0.1
+			X: 1.0
+			Y: 0.0
 			Z: 0.0
 		},
 		{
-			X: 0.9
-			Y: 0.1
-			Z: 0.0
+			X: 0.5
+			Y: 0.0
+			Z: 1.0
 		},
 	]
 }
-
-/*
-
-    .
-   .|.
-  . | .
- .......
-  l=0.8
-
- 0.8² = h²+0.4²
- h = sqrt(0.8²-0.4²)
-
-*/
