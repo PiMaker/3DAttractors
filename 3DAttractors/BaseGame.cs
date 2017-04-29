@@ -1,4 +1,9 @@
-﻿using System;
+﻿// File: BaseGame.cs
+// Created: 29.04.2017
+// 
+// See <summary> tags for more information.
+
+using System;
 using System.Collections.Generic;
 using Hjson;
 using Microsoft.Xna.Framework;
@@ -12,35 +17,42 @@ namespace _3DAttractors
     /// </summary>
     public class BaseGame : Game
     {
+        private static Random random = new Random();
+        private static readonly Vector3 offset = new Vector3(0.5f);
+
         private readonly List<Vector3> attractors = new List<Vector3>();
         private readonly GraphicsDeviceManager graphics;
+
+        private float angle;
         private VertexPositionColor[] attractorCube;
         private Color color;
 
         private VertexPositionColor[] cube;
         private Vector3 current;
-        private Vector3 currentStart;
         private VertexPositionColor[] currentCube;
+        private Vector3 currentStart;
         private BasicEffect effect;
 
         private SpriteFont font;
 
+        private long iterations;
+
         private int iterationsPerSecond;
+        private double iterationTimeout;
+        private double clock = 0f;
 
         private KeyboardState keyState, oldKeyState;
         private float movementSpeed;
-        private List<Vector3> points = new List<Vector3>();
+        private readonly List<Vector3> points = new List<Vector3>();
         private float pointSize;
+
+        private VertexBuffer bakedCubes = null;
+
+        private bool running;
+        private bool spinning;
         private SpriteBatch spriteBatch;
 
-        private float angle = 0f;
-
-        private bool running = false;
-        private bool spinning = false;
-
         private Matrix view, project;
-
-        private long iterations = 0;
 
         public BaseGame()
         {
@@ -56,18 +68,19 @@ namespace _3DAttractors
         /// </summary>
         protected override void Initialize()
         {
+            this.TargetElapsedTime = TimeSpan.FromMilliseconds(1000d / 60d);
+
             this.IsMouseVisible = true;
-            this.graphics.PreferredBackBufferWidth = 1500;
-            this.graphics.PreferredBackBufferHeight = 1500;
+            this.graphics.PreferredBackBufferWidth = 1000;
+            this.graphics.PreferredBackBufferHeight = 1000;
             this.graphics.ApplyChanges();
 
             this.keyState = this.oldKeyState = Keyboard.GetState();
 
             this.LoadConfig();
 
-            this.view = Matrix.CreateLookAt(new Vector3(0.5f, 0.5f, -2f), Vector3.One * 0.5f, Vector3.Up);
-
-            this.project = Matrix.CreatePerspectiveFieldOfView(MathHelper.PiOver4*0.8f,
+            this.view = Matrix.CreateLookAt(new Vector3(0f, 0f, -1.9f), Vector3.Zero, Vector3.Up);
+            this.project = Matrix.CreatePerspectiveFieldOfView(MathHelper.PiOver4 * 0.9f,
                 this.Window.ClientBounds.Width / (float) this.Window.ClientBounds.Height, 1, 100);
 
             base.Initialize();
@@ -133,10 +146,36 @@ namespace _3DAttractors
             {
                 this.spinning = !this.spinning;
             }
+            // Reset rotation
+            else if (this.keyState.IsKeyDown(Keys.Q) && this.oldKeyState.IsKeyUp(Keys.Q))
+            {
+                this.angle = 0;
+            }
+            // Step
+            else if (!this.running && this.keyState.IsKeyDown(Keys.S) && this.oldKeyState.IsKeyUp(Keys.S))
+            {
+                this.Iterate();
+            }
+            // DEBUG: Bake cubes
+            else if (!this.running && this.keyState.IsKeyDown(Keys.X) && this.oldKeyState.IsKeyUp(Keys.X))
+            {
+                this.bakedCubes = new VertexBuffer(this.GraphicsDevice, typeof(VertexPositionColor), this.points.Count*36, BufferUsage.WriteOnly);
+                // TODO
+            }
 
             if (this.spinning)
             {
-                angle += 0.015f;
+                this.angle += 0.015f;
+            }
+
+            if (this.running)
+            {
+                this.clock += gameTime.ElapsedGameTime.TotalMilliseconds;
+                while (this.clock > this.iterationTimeout)
+                {
+                    this.clock -= this.iterationTimeout;
+                    this.Iterate();
+                }
             }
 
             this.oldKeyState = this.keyState;
@@ -157,6 +196,12 @@ namespace _3DAttractors
             this.effect.VertexColorEnabled = true;
             this.effect.CurrentTechnique.Passes[0].Apply();
 
+            if (this.bakedCubes != null)
+            {
+                this.GraphicsDevice.SetVertexBuffer(this.bakedCubes);
+                this.GraphicsDevice.DrawPrimitives(PrimitiveType.TriangleList, 0, this.bakedCubes.VertexCount/3);
+            }
+
             foreach (var attractor in this.attractors)
             {
                 this.DrawCube(this.attractorCube, attractor, 1f);
@@ -171,7 +216,7 @@ namespace _3DAttractors
 
             this.spriteBatch.Begin();
             this.spriteBatch.DrawString(this.font,
-                $"Esc: Exit / P: {(this.running ? "Stop" : "Start")} / R: Reset / T: Reload config / E: {(this.spinning ? "Disable" : "Enable")} rotation\nIteration ({this.iterationsPerSecond}/s): {this.iterations}",
+                $"Esc: Exit / P: {(this.running ? "Stop" : "Start")} / R: Reset / T: Reload config / E: {(this.spinning ? "Disable" : "Enable")} rotation / Q: Reset rotation{(this.running ? "" : " / S: Step")}\nIteration ({this.iterationsPerSecond}/s): {this.iterations}",
                 Vector2.One * 10,
                 Color.White);
             this.spriteBatch.End();
@@ -179,11 +224,23 @@ namespace _3DAttractors
             base.Draw(gameTime);
         }
 
+        private void Iterate()
+        {
+            this.points.Add(this.current);
+
+            var target = this.attractors[BaseGame.random.Next(0, this.attractors.Count)];
+            this.current += (target - this.current) * this.movementSpeed;
+
+            this.iterations++;
+        }
+
         private void LoadConfig()
         {
             var config = HjsonValue.Load("config.hjson");
 
             this.iterationsPerSecond = config.Qo()["IterationsPerSecond"];
+            this.iterationTimeout = 1000d / this.iterationsPerSecond;
+
             this.movementSpeed = config.Qo()["MovementSpeed"];
             this.pointSize = config.Qo()["PointSize"];
 
@@ -208,9 +265,11 @@ namespace _3DAttractors
 
         private void DrawCube(VertexPositionColor[] model, Vector3 position, float size)
         {
-            this.effect.World = Matrix.CreateScale(size * 0.0025f) * Matrix.CreateTranslation(position) * Matrix.CreateRotationY(this.angle);
+            this.effect.World = Matrix.CreateScale(size * 0.0015f) *
+                                Matrix.CreateTranslation(position - BaseGame.offset) *
+                                Matrix.CreateRotationY(this.angle);
             this.effect.CurrentTechnique.Passes[0].Apply();
-            this.GraphicsDevice.DrawUserPrimitives(PrimitiveType.TriangleList, model, 0, model.Length/3);
+            this.GraphicsDevice.DrawUserPrimitives(PrimitiveType.TriangleList, model, 0, model.Length / 3);
         }
 
         private VertexPositionColor[] BuildCube(Color cubeColor)

@@ -1,15 +1,15 @@
 ﻿{
 	# Simulation speed
-	IterationsPerSecond: 1
+	IterationsPerSecond: 10000
 
 	# Fraction of distance to cross every iteration
-	MovementSpeed: 0.6
+	MovementSpeed: 0.5
 
 	# Point color
 	Color: "#FF0000"
 
 	# Point size
-	PointSize: 1.0
+	PointSize: 0.25
 
 	# Starting point
 	Start: {
@@ -21,6 +21,11 @@
 	# Attractor points defined as 3D coordinates
 	Attractors: [
 		{
+			X: 0.5
+			Y: 0.79282032302
+			Z: 0.0
+		},
+		{
 			X: 0.1
 			Y: 0.1
 			Z: 0.0
@@ -28,17 +33,20 @@
 		{
 			X: 0.9
 			Y: 0.1
-			Z: 0.0
-		},
-		{
-			X: 0.9
-			Y: 0.9
-			Z: 0.0
-		},
-		{
-			X: 0.1
-			Y: 0.9
 			Z: 0.0
 		},
 	]
 }
+
+/*
+
+    .
+   .|.
+  . | .
+ .......
+  l=0.8
+
+ 0.8² = h²+0.4²
+ h = sqrt(0.8²-0.4²)
+
+*/
